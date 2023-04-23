@@ -1,13 +1,23 @@
+//import packages and other files
 const express = require('express');
 const router = express.Router();
 const bodyParser =  require('body-parser');
 const { v4: uuidv4 } = require('uuid');
-const session = require('express-session');
+const sessions = require('express-session');
 const bcrypt = require('bcrypt');
 const mysql = require('mysql');
 
 const saltRounds = 10;
-const myPlaintextPassword = 'password';
+// Store hash in your password DB.
+const salt = bcrypt.genSaltSync(saltRounds);
+
+ // create application/json parser
+var jsonParser = bodyParser.json()
+
+// create application/x-www-form-urlencoded parser
+var urlencodedParser = bodyParser.urlencoded({ extended: false })
+
+const app = express();
 
 //establish the connection
 const db = mysql.createConnection({
@@ -25,76 +35,98 @@ db.connect((err) => {
     console.log('Mysql is connected');
 });
 
-const salt = bcrypt.genSaltSync(saltRounds);
+app.use(sessions({
+    secret: '1234567890QWERT',
+    resave: false,
+    saveUninitialized: true
+}));
 
-// Store hash in your password DB.
 
-const app = express();
-
+//login page
 router.get('/login', (req, res) => {
     res.render('login');
 });
 
-//create signup
-// router.get('/signup', (req, res) => {
-//     res.render('signup');
-// });
+//signup page
+router.get('/signup', (req, res) => {
+    res.render('signup');
+});
 
 //post signup
-router.get('/signup', (req, res) => {
-    // let = username = req.body.username;
-    // let = password = req.body.password;
+router.post('/signup', urlencodedParser, (req, res) => {
+     //access data from the form
+    let name = req.body.name;
+    let username = req.body.username;
+    let password = req.body.password;
 
-    let encryptedPassword = bcrypt.hashSync(myPlaintextPassword, salt);
+    //encrypt the password
+    let encryptedPassword = bcrypt.hashSync(password, salt);
 
-    let user = {name: 'Juan', email: 'juan@gmail.com', 'password':encryptedPassword};
+    let user = {'name':name, 'username': username, 'password':encryptedPassword};
     let sql = `INSERT INTO users SET ?`;
     let query = db.query(sql, user, (err, result)=>{
         if(err) throw err;
-            console.log(result);
-        res.send('new user is created...')
+        res.render('dashboard',{
+            'username': username,
+        })
     });
 });
 
-router.get('/dashboard', (req, res) => {
+//authenticate user
+router.post('/authenticate',  urlencodedParser, (req, res) => {
+    //access data from the form
+    let = username = req.body.username;
+    let = password = req.body.password;
+
+// Ensure the input fields exists and are not empty
+	if (username && password) {
+        const params = [username];
+        
+        const sql = "SELECT * FROM users where username = ?";
+     
+        let query = db.query(sql, params, (err, result)=> {
+          if (err) {
+
+             throw err;
+
+          } else {
+
+              if (result.length == 0) {
+
+                  res.send("Invalid username.");
+
+              } else {
+                 
+                  var hashedPassword = result[0].password;
+                  var response = bcrypt.compareSync(password, hashedPassword);
+
+                  if (response == false) {
+                     res.send("Password verification failed.");
+                  } else {
+                        // req.sessions.user = result;
+                        res.redirect('/dashboard')
+                  }
+              }
+          }
+       });
+	} else {
+		res.send('Please enter Username and Password!');
+		res.end();
+	}
+});
+
+//dashboard page
+router.get('/dashboard', urlencodedParser, (req, res) => {
+    // console.log(req.sessions.user);
     res.render('dashboard',{
         'username':'new user'
     });
 });
 
- // create application/json parser
-var jsonParser = bodyParser.json()
+//logout 
+router.post('/logout' ,(req, res)=>{
 
-// create application/x-www-form-urlencoded parser
-var urlencodedParser = bodyParser.urlencoded({ extended: false })
-
-//fake credentials
- const credentials = {
-    username:"admin",
-    password: "root"
- }
-
-app.set('trust proxy', 1) // trust first proxy
-app.use(session({
-  secret: uuidv4(), 
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: true }
-}))
-
-router.post('/authenticate',  urlencodedParser, (req, res) => {
-  let = username = req.body.username;
-  let = password = req.body.password;
-    
-  if(username === credentials.username && password === credentials.password){
-    res.render('dashboard',{
-        'username' : username
-  });
-  }
-  else{
-    req.session.username = 1
-    // res.end("Invalid credentials!");
-  }
+    res.render('login');
 });
 
 module.exports = router;
