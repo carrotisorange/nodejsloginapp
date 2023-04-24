@@ -1,9 +1,6 @@
 //import modules and other files
 const express = require('express');
-const mysql = require('mysql');
-const bodyparser = require('body-parser');
 const path = require('path');
-const ejs = require('ejs');
 const routes = require('./routes/auth');
 const PORT = 3000;
 const app = express();

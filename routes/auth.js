@@ -1,9 +1,11 @@
 //import packages and other files
+require('dotenv').config();
+// console.log(process.env) // remove this after you've confirmed it is working
 const express = require('express');
 const router = express.Router();
 const bodyParser =  require('body-parser');
 const { v4: uuidv4 } = require('uuid');
-const sessions = require('express-session');
+const session = require('express-session');
 const bcrypt = require('bcrypt');
 const mysql = require('mysql');
 
@@ -15,16 +17,16 @@ const salt = bcrypt.genSaltSync(saltRounds);
 var jsonParser = bodyParser.json()
 
 // create application/x-www-form-urlencoded parser
-var urlencodedParser = bodyParser.urlencoded({ extended: false })
+var urlencodedParser = bodyParser.urlencoded({ extended: true })
 
 const app = express();
 
 //establish the connection
 const db = mysql.createConnection({
-    host: 'localhost', 
-    user: 'root',
-    password: '',
-    database: 'nodemysql'
+    host: process.env.DB_HOST, 
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME
 });
 
 //connect to the db
@@ -35,14 +37,17 @@ db.connect((err) => {
     console.log('Mysql is connected');
 });
 
-app.use(sessions({
-    secret: '1234567890QWERT',
+app.use(session({
+    secret: process.env.SESSION_SECRET_KEY,
     resave: false,
     saveUninitialized: true
 }));
 
-
 //login page
+router.get('/', (req, res) => {
+    res.render('login');
+});
+
 router.get('/login', (req, res) => {
     res.render('login');
 });
@@ -103,7 +108,8 @@ router.post('/authenticate',  urlencodedParser, (req, res) => {
                   if (response == false) {
                      res.send("Password verification failed.");
                   } else {
-                        // req.sessions.user = result;
+                        //create a session here
+                        //code
                         res.redirect('/dashboard')
                   }
               }
@@ -117,15 +123,16 @@ router.post('/authenticate',  urlencodedParser, (req, res) => {
 
 //dashboard page
 router.get('/dashboard', urlencodedParser, (req, res) => {
-    // console.log(req.sessions.user);
+    // check if the use is authenticated via session
+    //code here
     res.render('dashboard',{
-        'username':'new user'
+        'username':'username'
     });
 });
 
 //logout 
 router.post('/logout' ,(req, res)=>{
-
+    //destroy the created session
     res.render('login');
 });
 
